@@ -216,7 +216,7 @@ If TARGET is non-nil and is in buffer, move point to it."
          (ancestor (and parent (navigel-parent parent))))
     (cond ((and ancestor (navigel-equal parent navigel-entity))
            (navigel-open ancestor parent))
-          (parent
+          ((and parent (not (navigel-equal parent navigel-entity)))
            (navigel-open parent entity))
           (t
            (message "open-entity-parent: %s" navigel-app)
