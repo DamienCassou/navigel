@@ -19,7 +19,14 @@
 
 ;;; Commentary:
 
-;;
+;; This file is an example usage of navigel.  It guides the reader
+;; through an implementation of a tablist-based directory navigator.
+
+;; In this example, we will implement a tablist-based UI to navigate
+;; the folders of your computer.  As in dired, we want one file or
+;; directory per line.  Pressing `RET' on a line should open the file
+;; or directory at point.  Pressing `m' should mark the file at point
+;; while `d' should delete all marked files.
 
 ;;; Code:
 
@@ -27,54 +34,124 @@
 
 (require 'navigel)
 
+;; Navigel is based on the notion of "entity".  In our example of a
+;; directory navigator, the entities will be absolute filenames.
+
+;; Navigel requires the developer to implement a command that calls
+;; `navigel-open' on the initial entity.  Navigel also requires an
+;; application name dynamically bound in the variable `navigel-app'.
+;; This name is meant to disambiguate method definitions and is *not*
+;; visible to the user.  In this example, we use `navigel-examples-fs'
+;; as name.  The code below defines the command:
+
+(defun navigel-examples-fs-list-files (&optional directory)
+  "List files of DIRECTORY, home directory if nil."
+  (interactive (list (getenv "HOME")))
+  (let ((navigel-app 'navigel-examples-fs))
+    (navigel-open (f-expand directory) nil)))
+
+;; For this command to display the files in the home directory (i.e.,
+;; "~/"), navigel needs a way to get the children of a file entity.
+;; Specifying behavior with navigel is done through method overriding.
+;; How to get the children of an entity should be specified by
+;; overriding the method `navigel-children':
+
+(cl-defmethod navigel-children (directory callback &context (navigel-app navigel-examples-fs))
+  "Call CALLBACK with the files in DIRECTORY as parameter."
+  (funcall callback (f-entries directory)))
+
+;; `cl-method' is used to override the methods of navigel.  To
+;; distinguish this override of `navigel-children' from other
+;; overrides made by other navigel clients, above code uses a context
+;; specializer. The context specializer is introduced with the
+;; `&context' keyword and followed by the name of the application
+;; saved in `navigel-app' in the command above.
+
+;; At this point, you should be able to type `M-x
+;; navigel-examples-fs-list-files RET' to get a buffer showing all
+;; files and folders in your home directory.  If you move the point to
+;; a folder and press `RET', a new buffer should open listing its
+;; files and folders.  If you type `M-x imenu RET', you can select one
+;; entity of the buffer using completion: I recommend binding this
+;; command or `counsel-imenu' to a key (e.g., to `M-i') because this
+;; can be useful in many kinds of buffers.
+
+;; A problem though: the absolute filenames (e.g., "/home/me/.bashrc")
+;; are shown whereas a user probably expects to see basenames (e.g.,
+;; ".bashrc") as in all file browsers.  We can easily change that by
+;; overriding the `navigel-name' method:
+
 (cl-defmethod navigel-name (file &context (navigel-app navigel-examples-fs))
   (f-filename file))
+
+;; This is much better.  With `RET', we can easily navigate from a
+;; folder to its sub-folders.  Nevertheless, we have no way yet to
+;; navigate back, i.e., from a folder to its parent.  To do that, we
+;; need to override the `navigel-parent' method whose responsibility
+;; is to return the parent entity of the entity passed as parameter:
 
 (cl-defmethod navigel-parent (file &context (navigel-app navigel-examples-fs))
   (f-dirname file))
 
-(cl-defmethod navigel-children (directory callback &context (navigel-app navigel-examples-fs))
-  "Call CALLBACK with the files in DIRECTORY as parameter."
-  (when (not (file-directory-p directory))
-    (user-error "%s is not a directory" directory))
-  (run-at-time nil nil callback (f-entries directory)))
+;; You should now be able to press `^' to go to the parent directory
+;; of the current one.
 
-(cl-defmethod navigel-equal (file1 file2 &context (navigel-app navigel-examples-fs))
-  (f-equal-p file1 file2))
-
-(defun navigel-examples-fs-list-files (&optional directory)
-  "List files of DIRECTORY, home directory if nil."
-  (interactive (list "~/"))
-  (let ((navigel-app 'navigel-examples-fs))
-    (navigel-open
-     (f-expand directory)
-     (f-expand "~/.emacs.d"))))
+;; Pressing `RET' on a folder correctly opens the folder in another
+;; navigel buffer.  But, just like in `dired', you might want that
+;; pressing `RET' on a file opens the file itself.  This can be done
+;; by overriding `navigel-open':
 
 (cl-defmethod navigel-open (file _target &context (navigel-app navigel-examples-fs))
   (if (f-file-p file)
       (find-file file)
     (cl-call-next-method)))
 
+;; The `cl-call-next-method' call is used to express that we don't
+;; have anything specific to do for a non-file first parameter and
+;; that we want the default behavior.  This works perfectly fine!
+
+;; We can improve the list of files a bit by adding some more
+;; information about each file.  For example, we could have a first
+;; column representing the size of each file.  We start by
+;; implementing a function returning the size of its file argument:
+
 (defun navigel-examples-fs-size (file)
   "Return FILE size as number of bytes."
   (nth 7 (file-attributes file)))
 
+;; We now specify the column values for each file by overriding
+;; `navigel-entity-to-columns':
+
+(cl-defmethod navigel-entity-to-columns (file &context (navigel-app navigel-examples-fs))
+  (vector (number-to-string (navigel-examples-fs-size file))
+          (navigel-name file)))
+
+;; The code above specifies that the first column of a file line will
+;; contain the file size and the second will contain the filename.  We
+;; aren't exactly done yet as we also need to specify what each column
+;; should look like.  This is done by overriding
+;; `navigel-tablist-format':
+
 (cl-defmethod navigel-tablist-format (_entity &context (navigel-app navigel-examples-fs))
-  (vector (list "Size (B)" 10
-                (lambda (entry1 entry2)
-                  (< (navigel-examples-fs-size (car entry1)) (navigel-examples-fs-size (car entry2))))
-                :right-align t)
+  (vector (list "Size (B)" 10 nil :right-align t)
           (list "Name" 0 t)))
 
-(cl-defmethod navigel-entity-to-columns (entity &context (navigel-app navigel-examples-fs))
-  (vector (number-to-string (navigel-examples-fs-size entity))
-          (navigel-name entity)))
+;; This code defines the format of columns. The first column will have
+;; "Size (B)" as title to indicate that the displayed numbers
+;; represent the size in bytes.  The first column will be 10
+;; characters wide and the numbers will be right aligned.  The second
+;; column will have "Name as title and will take the rest of the
+;; buffer width.  Read the documentation of `tabulated-list-format' to
+;; get more information about the column format specification.
+
+;; As a final step, we might want to be able to delete files from the
+;; file system.  This can be done by overriding `navigel-delete':
 
 (cl-defmethod navigel-delete (files &context (navigel-app navigel-examples-fs))
   (dolist (file files)
-    (if (f-directory-p file)
-        (delete-directory file t t)
-      (delete-file file t))))
+    (f-delete file)))
+
+;; You can now mark files with `m' and delete them with `D'.
 
 (provide 'navigel-examples-fs)
 ;;; navigel-examples-fs.el ends here
