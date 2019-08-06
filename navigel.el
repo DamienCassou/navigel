@@ -96,7 +96,8 @@ Return non-nil if ENTITY is found, nil otherwise."
 
 The returned value is the default for `navigel-buffer-name',
 `navigel-tablist-name' and `navigel-imenu-name'.  Those can be
-overriden separately if necessary.")
+overriden separately if necessary."
+  (format "%s" entity))
 
 (cl-defgeneric navigel-buffer-name (entity)
   "Return a string representing ENTITY in the buffer's name."
@@ -169,7 +170,7 @@ is asked for a top level ENTITY."
   (let ((app navigel-app))
     (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
       (navigel-tablist-mode)
-      (setq-local tabulated-list-padding 0) ; for `tablist'
+      (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
       (setq-local navigel-app app)
       (setq-local tablist-operations-function #'navigel--tablist-operation-function)
@@ -216,7 +217,7 @@ If TARGET is non-nil and is in buffer, move point to it."
          (ancestor (and parent (navigel-parent parent))))
     (cond ((and ancestor (navigel-equal parent navigel-entity))
            (navigel-open ancestor parent))
-          (parent
+          ((and parent (not (navigel-equal parent navigel-entity)))
            (navigel-open parent entity))
           (t
            (message "open-entity-parent: %s" navigel-app)

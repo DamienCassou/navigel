@@ -1,0 +1,66 @@
+* navigel
+
+  #+BEGIN_HTML
+      <p>
+        <a href="https://stable.melpa.org/#/navigel">
+          <img alt="MELPA Stable" src="https://stable.melpa.org/packages/navigel-badge.svg"/>
+        </a>
+
+        <a href="https://melpa.org/#/navigel">
+          <img alt="MELPA" src="https://melpa.org/packages/navigel-badge.svg"/>
+        </a>
+
+        <a href="https://gitlab.petton.fr/DamienCassou/navigel/commits/master">
+          <img alt="pipeline status" src="https://gitlab.petton.fr/DamienCassou/navigel/badges/master/pipeline.svg" />
+        </a>
+      </p>
+  #+END_HTML
+
+
+** Summary
+
+The navigel package is a library that makes it simpler for Emacs Lisp
+developers to define user-interfaces based on tablists (also known as
+tabulated-lists).  Overriding a few (CL) methods and calling
+`navigel-open' is all that's required to get a nice UI to navigate
+your domain objects (files, music library, database, etc.).
+
+Navigel displays "entities" in a tablist. An "entity" is whatever you
+want that has a name.  If an entity defines some "children", then
+pressing ~RET~ on the entity will list its children in another
+tablist.
+
+Some features of navigel include:
+
+- pressing ~RET~ on an entity lists the entity's children in another
+  tablist;
+- pressing ~^~ opens the parent of the current entity;
+- pressing ~m~ marks the entity at point;
+- pressing ~d~ deletes the marked entities.
+
+This package depends on [[https://github.com/politza/tablist][tablist]] to get support for marking and more.
+
+** Usage
+
+This code is a library and is meant for Emacs Lisp developers. The
+source code is well documented and organized in sections. Please have
+a look at it.
+
+Please have a look at the [[file:examples/navigel-examples-fs.el][examples/navigel-examples-fs.el]] file for an
+example on how to use the library. This file guides the reader through
+an implementation of a tablist-based directory navigator with support
+for marking and deleting:
+
+[[file:media/files.png]]
+
+** License
+
+See [[file:COPYING][COPYING]]. Copyright (c) 2019 Damien Cassou.
+
+  #+BEGIN_HTML
+  <a href="https://liberapay.com/DamienCassou/donate">
+    <img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg">
+  </a>
+  #+END_HTML
+
+#  LocalWords:  navigel tablist tablists
