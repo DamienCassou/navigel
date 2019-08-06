@@ -169,7 +169,7 @@ is asked for a top level ENTITY."
   (let ((app navigel-app))
     (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
       (navigel-tablist-mode)
-      (setq-local tabulated-list-padding 0) ; for `tablist'
+      (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
       (setq-local navigel-app app)
       (setq-local tablist-operations-function #'navigel--tablist-operation-function)
