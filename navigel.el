@@ -96,7 +96,8 @@ Return non-nil if ENTITY is found, nil otherwise."
 
 The returned value is the default for `navigel-buffer-name',
 `navigel-tablist-name' and `navigel-imenu-name'.  Those can be
-overriden separately if necessary.")
+overriden separately if necessary."
+  (format "%s" entity))
 
 (cl-defgeneric navigel-buffer-name (entity)
   "Return a string representing ENTITY in the buffer's name."
