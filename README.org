@@ -38,7 +38,11 @@ Some features of navigel include:
 - pressing ~m~ marks the entity at point;
 - pressing ~d~ deletes the marked entities.
 
-This package depends on [[https://github.com/politza/tablist][tablist]] to get support for marking and more.
+This package depends on [[https://github.com/politza/tablist][tablist]] to get support for marking, deletion
+and more.  On top of the tablist package, navigel provides an easy way
+to specify the content of your tabulated lists: through entities
+specified with method overrides.  This makes it a breath to have
+tablist-based navigation within domain objects.
 
 ** Usage
 

@@ -234,3 +234,5 @@ If TARGET is non-nil and is in buffer, move point to it."
 
 (provide 'navigel)
 ;;; navigel.el ends here
+
+;;; LocalWords:  navigel tablist tablists keymap
