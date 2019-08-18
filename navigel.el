@@ -38,6 +38,7 @@
 ;;; Code:
 
 (require 'tablist)
+(require 'seq)
 
 
 ;; Private variables
@@ -158,6 +159,47 @@ By default, list ENTITY's children in a tabulated list.
 (cl-defgeneric navigel-delete (_entities)
   "Remove each item of ENTITIES from its parent."
   (user-error "This operation is not supported in this context"))
+
+(defun navigel-async-mapcar (mapfn list callback)
+  "Apply MAPFN to each element of LIST and pass result to CALLBACK.
+
+MAPFN is a function taking 2 arguments: the element to map and a
+callback to call when the mapping is done."
+  (if (not list)
+      (funcall callback nil)
+    (let ((result (make-vector (length list) nil))
+          (count 0))
+      (cl-loop for index below (length list)
+               for item = (seq-elt list index)
+               do (let ((index index) (item item))
+                    (funcall
+                     mapfn
+                     item
+                     (lambda (item-result)
+                       (setf (seq-elt result index) item-result)
+                       (cl-incf count)
+                       (when (eq count (length list))
+                         ;; use `run-at-time' to ensure that CALLBACK is
+                         ;; consistently called asynchronously even if MAPFN is
+                         ;; synchronous:
+                         (run-at-time
+                          0 nil
+                          callback
+                          (seq-concatenate 'list result))))))))))
+
+(defun navigel-async-mapc (mapfn list callback)
+  "Same as `navigel-async-mapcar' but for side-effects only.
+
+MAPFN is a function taking 2 arguments: an element of LIST and a
+callback.  MAPFN should call the callback with no argument when
+done computing.
+
+CALLBACK is a function of no argument that is called when done
+computing for the all elements of LIST."
+  (navigel-async-mapcar
+   (lambda (item callback) (funcall mapfn item (lambda () (funcall callback nil))))
+   list
+   (lambda (_result) (funcall callback))))
 
 (defun navigel-list-children (entity &optional target)
   "Open a new buffer showing ENTITY's children.
