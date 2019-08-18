@@ -59,7 +59,7 @@ OPERATION and ARGS are defined by `tablist-operations-function'."
   (cl-case operation
     (supported-operations '(find-entry delete))
     (find-entry (navigel-open (car args) nil))
-    (delete (navigel-delete (car args)))))
+    (delete (navigel-delete (car args) #'navigel-revert-buffer))))
 
 (defun navigel--imenu-extract-index-name ()
   "Return the name of entity at point for `imenu'.
@@ -160,9 +160,15 @@ By default, list ENTITY's children in a tabulated list.
 "
   (navigel-list-children entity target))
 
-(cl-defgeneric navigel-delete (_entities)
-  "Remove each item of ENTITIES from its parent."
+(cl-defgeneric navigel-delete (_entity &optional _callback)
+  "Remove ENTITY from its parent.
+If non-nil, call CALLBACK with no parameter when done."
   (user-error "This operation is not supported in this context"))
+
+(cl-defmethod navigel-delete ((entities list) &optional callback)
+  "Remove each item of ENTITIES from its parent.
+If non-nil, call CALLBACK with no parameter when done."
+  (navigel-async-mapc #'navigel-delete entities callback))
 
 (defun navigel-async-mapcar (mapfn list callback)
   "Apply MAPFN to each element of LIST and pass result to CALLBACK.

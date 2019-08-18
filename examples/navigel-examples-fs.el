@@ -147,11 +147,12 @@
 ;; As a final step, we might want to be able to delete files from the
 ;; file system.  This can be done by overriding `navigel-delete':
 
-(cl-defmethod navigel-delete (files &context (navigel-app navigel-examples-fs))
-  (dolist (file files)
-    (f-delete file)))
+(cl-defmethod navigel-delete (file &context (navigel-app navigel-examples-fs) &optional callback)
+  (f-delete file)
+  (funcall callback))
 
-;; You can now mark files with `m' and delete them with `D'.
+;; The `funcall' is here to tell navigel that deletion is
+;; finished. You can now mark files with `m' and delete them with `D'.
 
 (provide 'navigel-examples-fs)
 ;;; navigel-examples-fs.el ends here
