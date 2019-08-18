@@ -116,6 +116,10 @@ overridden separately if necessary."
   "Execute CALLBACK with the list of ENTITY's children as argument.
 This method must be overridden for any tablist view to work.")
 
+(cl-defmethod navigel-children ((entities list) callback)
+  "Execute CALLBACK with the children of ENTITIES as argument."
+  (navigel-async-mapcar  #'navigel-children entities callback))
+
 (cl-defgeneric navigel-parent (_entity)
   "Return the parent of ENTITY if possible, nil if not."
   nil)
