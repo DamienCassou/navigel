@@ -96,7 +96,7 @@ Return non-nil if ENTITY is found, nil otherwise."
 
 The returned value is the default for `navigel-buffer-name',
 `navigel-tablist-name' and `navigel-imenu-name'.  Those can be
-overriden separately if necessary."
+overridden separately if necessary."
   (format "%s" entity))
 
 (cl-defgeneric navigel-buffer-name (entity)
@@ -113,7 +113,7 @@ overriden separately if necessary."
 
 (cl-defgeneric navigel-children (entity callback)
   "Execute CALLBACK with the list of ENTITY's children as argument.
-This method must be overriden for any tablist view to work.")
+This method must be overridden for any tablist view to work.")
 
 (cl-defgeneric navigel-parent (_entity)
   "Return the parent of ENTITY if possible, nil if not."
