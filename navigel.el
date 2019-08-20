@@ -5,7 +5,7 @@
 ;; Author: Damien Cassou <damien@cassou.me>
 ;; Url: https://gitlab.petton.fr/DamienCassou/navigel
 ;; Package-requires: ((emacs "25.1") (tablist "1.0"))
-;; Version: 0.2.0
+;; Version: 0.3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 ;;; Code:
 
 (require 'tablist)
+(require 'seq)
 
 
 ;; Private variables
@@ -58,7 +59,7 @@ OPERATION and ARGS are defined by `tablist-operations-function'."
   (cl-case operation
     (supported-operations '(find-entry delete))
     (find-entry (navigel-open (car args) nil))
-    (delete (navigel-delete (car args)))))
+    (delete (navigel-delete (car args) #'navigel-revert-buffer))))
 
 (defun navigel--imenu-extract-index-name ()
   "Return the name of entity at point for `imenu'.
@@ -96,7 +97,7 @@ Return non-nil if ENTITY is found, nil otherwise."
 
 The returned value is the default for `navigel-buffer-name',
 `navigel-tablist-name' and `navigel-imenu-name'.  Those can be
-overriden separately if necessary."
+overridden separately if necessary."
   (format "%s" entity))
 
 (cl-defgeneric navigel-buffer-name (entity)
@@ -113,7 +114,11 @@ overriden separately if necessary."
 
 (cl-defgeneric navigel-children (entity callback)
   "Execute CALLBACK with the list of ENTITY's children as argument.
-This method must be overriden for any tablist view to work.")
+This method must be overridden for any tablist view to work.")
+
+(cl-defmethod navigel-children ((entities list) callback)
+  "Execute CALLBACK with the children of ENTITIES as argument."
+  (navigel-async-mapcar  #'navigel-children entities callback))
 
 (cl-defgeneric navigel-parent (_entity)
   "Return the parent of ENTITY if possible, nil if not."
@@ -155,9 +160,56 @@ By default, list ENTITY's children in a tabulated list.
 "
   (navigel-list-children entity target))
 
-(cl-defgeneric navigel-delete (_entities)
-  "Remove each item of ENTITIES from its parent."
+(cl-defgeneric navigel-delete (_entity &optional _callback)
+  "Remove ENTITY from its parent.
+If non-nil, call CALLBACK with no parameter when done."
   (user-error "This operation is not supported in this context"))
+
+(cl-defmethod navigel-delete ((entities list) &optional callback)
+  "Remove each item of ENTITIES from its parent.
+If non-nil, call CALLBACK with no parameter when done."
+  (navigel-async-mapc #'navigel-delete entities callback))
+
+(defun navigel-async-mapcar (mapfn list callback)
+  "Apply MAPFN to each element of LIST and pass result to CALLBACK.
+
+MAPFN is a function taking 2 arguments: the element to map and a
+callback to call when the mapping is done."
+  (if (not list)
+      (funcall callback nil)
+    (let ((result (make-vector (length list) nil))
+          (count 0))
+      (cl-loop for index below (length list)
+               for item = (seq-elt list index)
+               do (let ((index index) (item item))
+                    (funcall
+                     mapfn
+                     item
+                     (lambda (item-result)
+                       (setf (seq-elt result index) item-result)
+                       (cl-incf count)
+                       (when (eq count (length list))
+                         ;; use `run-at-time' to ensure that CALLBACK is
+                         ;; consistently called asynchronously even if MAPFN is
+                         ;; synchronous:
+                         (run-at-time
+                          0 nil
+                          callback
+                          (seq-concatenate 'list result))))))))))
+
+(defun navigel-async-mapc (mapfn list callback)
+  "Same as `navigel-async-mapcar' but for side-effects only.
+
+MAPFN is a function taking 2 arguments: an element of LIST and a
+callback.  MAPFN should call the callback with no argument when
+done computing.
+
+CALLBACK is a function of no argument that is called when done
+computing for the all elements of LIST."
+  (navigel-async-mapcar
+   (lambda (item callback) (funcall mapfn item (lambda () (funcall callback nil))))
+   list
+   (lambda (_result) (funcall callback))))
 
 (defun navigel-list-children (entity &optional target)
   "Open a new buffer showing ENTITY's children.
@@ -191,6 +243,7 @@ If TARGET is non-nil and is in buffer, move point to it."
   (let ((entity navigel-entity)
         ;; save navigel-app so we can rebind below
         (app navigel-app))
+    (message "Refreshing…")
     (navigel-children
      entity
      (lambda (children)
@@ -203,7 +256,8 @@ If TARGET is non-nil and is in buffer, move point to it."
                         children))
            (tabulated-list-print)
            (when target
-             (navigel--go-to-entity target))))))))
+             (navigel--go-to-entity target))
+           (message "Refreshed!")))))))
 
 (defun navigel-revert-buffer (&rest _args)
   "Compute `navigel-entity' children and list those in the current buffer."
