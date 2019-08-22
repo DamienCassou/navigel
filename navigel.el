@@ -280,8 +280,7 @@ If TARGET is non-nil and is in buffer, move point to it."
           ((and parent (not (navigel-equal parent navigel-entity)))
            (navigel-open parent entity))
           (t
-           (message "open-entity-parent: %s" navigel-app)
-           (message "Entity `%s' has no parent." (navigel-tablist-name entity))))))
+           (message "No parent to go to.")))))
 
 (defvar navigel-tablist-mode-map
   (let ((map (make-sparse-keymap)))
