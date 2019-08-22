@@ -139,6 +139,10 @@ This method must be overridden for any tablist view to work.")
 The default name is based on `navigel-app' and `navigel-buffer-name'."
   (format "*%s-%s*" navigel-app (navigel-buffer-name entity)))
 
+(cl-defgeneric navigel-entity-tablist-mode (_entity)
+  "Enable the `major-mode' most suited to display children of ENTITY."
+  (navigel-tablist-mode))
+
 (cl-defgeneric navigel-tablist-format (_entity)
   "Return a vector specifying columns to display ENTITY's children.
 The return value is set as `tabulated-list-format'."
@@ -221,7 +225,7 @@ is asked for a top level ENTITY."
   ;; save navigel-app because (navigel-tablist-mode) will reset it
   (let ((app navigel-app))
     (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
-      (navigel-tablist-mode)
+      (navigel-entity-tablist-mode entity)
       (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
       (setq-local navigel-app app)
