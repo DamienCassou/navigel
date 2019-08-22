@@ -134,6 +134,25 @@ This method must be overridden for any tablist view to work.")
 (cl-defmethod navigel-entity-at-point (&context (major-mode (derived-mode navigel-tablist-mode)))
   (tabulated-list-get-id))
 
+(cl-defgeneric navigel-marked-entities (&optional at-point-if-empty)
+  "Return a list of entities that are selected.
+If no entity is selected and AT-POINT-IF-EMPTY is non-nil, return
+a list with just the entity at point.")
+
+(cl-defmethod navigel-marked-entities (&context (major-mode (derived-mode navigel-tablist-mode))
+                                                &optional at-point-if-empty)
+  ;; `tablist-get-marked-items' automatically includes the entity at
+  ;; point if no entity is marked. We have to remove it unless
+  ;; `at-point-if-empty' is non-nil.
+  (let ((entities (mapcar #'car (tablist-get-marked-items))))
+    (if (or (> (length entities) 1)
+            (save-excursion ;; check if the entity is really marked
+              (navigel-go-to-entity (car entities))
+              (tablist-get-mark-state))
+            at-point-if-empty)
+        entities
+      (list))))
+
 (cl-defgeneric navigel-entity-buffer (entity)
   "Return a buffer name for ENTITY.
 The default name is based on `navigel-app' and `navigel-buffer-name'."
