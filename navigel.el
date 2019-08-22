@@ -41,6 +41,15 @@
 (require 'seq)
 
 
+(defgroup navigel nil
+  "Navigel."
+  :group 'magit-extensions)
+
+(defcustom navigel-changed-hook nil
+  "Normal hook run after a navigel's tablist buffer has been refreshed or populated."
+  :type 'hook)
+
+
 ;; Private variables
 
 (defvar navigel-entity nil
@@ -282,6 +291,7 @@ If TARGET is non-nil and is in buffer, move point to it."
            (tabulated-list-print)
            (when target
              (navigel-go-to-entity target))
+           (run-hooks 'navigel-changed-hook)
            (message "Ready!")))))))
 
 (defun navigel-revert-buffer (&rest _args)
