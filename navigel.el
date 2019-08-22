@@ -268,6 +268,31 @@ is asked for a top level ENTITY."
       (navigel-refresh target)
       (switch-to-buffer (current-buffer)))))
 
+(defun navigel--save-state ()
+  "Return an object representing the state of the current buffer.
+This should be restored with `navigel--restore-state'.
+
+The state contains the entity at point, the column of point, and the marked entities."
+  `(
+    (entity-at-point . ,(navigel-entity-at-point))
+    (column . ,(current-column))
+    (marked-entities . ,(navigel-marked-entities))))
+
+(defun navigel--restore-state (state)
+  "Restore STATE.  This was saved with `navigel--save-state'."
+  (let-alist state
+    (if .entity-at-point
+        (navigel-go-to-entity .entity-at-point)
+      (setf (point) (point-min)))
+    (when .column
+      (setf (point) (line-beginning-position))
+      (forward-char .column))
+    (when .marked-entities
+      (save-excursion
+        (dolist (entity .marked-entities)
+          (when (navigel-go-to-entity entity)
+            (tablist-put-mark)))))))
+
 (defun navigel-refresh (&optional target)
   "Compute `navigel-entity' children and list those in the current buffer.
 
@@ -282,13 +307,15 @@ If TARGET is non-nil and is in buffer, move point to it."
      entity
      (lambda (children)
        ;; restore navigel-app
-       (let ((navigel-app app))
+       (let ((navigel-app app) state)
          (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
+           (setq state (navigel--save-state))
            (setq-local tabulated-list-entries
                        (mapcar
                         (lambda (child) (list child (navigel-entity-to-columns child)))
                         children))
            (tabulated-list-print)
+           (navigel--restore-state state)
            (when target
              (navigel-go-to-entity target))
            (run-hooks 'navigel-changed-hook)
