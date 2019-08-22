@@ -75,7 +75,7 @@ This function is used as a value for
   (unless (bobp)
     (forward-line -1)))
 
-(defun navigel--go-to-entity (entity)
+(defun navigel-go-to-entity (entity)
   "Move point to ENTITY.
 Return non-nil if ENTITY is found, nil otherwise."
   (goto-char (point-min))
@@ -262,7 +262,7 @@ If TARGET is non-nil and is in buffer, move point to it."
                         children))
            (tabulated-list-print)
            (when target
-             (navigel--go-to-entity target))
+             (navigel-go-to-entity target))
            (message "Ready!")))))))
 
 (defun navigel-revert-buffer (&rest _args)
