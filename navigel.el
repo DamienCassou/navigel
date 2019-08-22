@@ -247,7 +247,9 @@ If TARGET is non-nil and is in buffer, move point to it."
   (let ((entity navigel-entity)
         ;; save navigel-app so we can rebind below
         (app navigel-app))
-    (message "Refreshing…")
+    (message (if (equal (point-min) (point-max))
+                 "Populating…"
+               "Refreshing…"))
     (navigel-children
      entity
      (lambda (children)
@@ -261,7 +263,7 @@ If TARGET is non-nil and is in buffer, move point to it."
            (tabulated-list-print)
            (when target
              (navigel--go-to-entity target))
-           (message "Refreshed!")))))))
+           (message "Ready!")))))))
 
 (defun navigel-revert-buffer (&rest _args)
   "Compute `navigel-entity' children and list those in the current buffer."
