@@ -212,7 +212,7 @@ callback to call when the mapping is done."
     (let ((result (make-vector (length list) nil))
           (count 0))
       (cl-loop for index below (length list)
-               for item = (seq-elt list index)
+               for item in list
                do (let ((index index) (item item))
                     (funcall
                      mapfn
