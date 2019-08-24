@@ -143,10 +143,11 @@ This method must be overridden for any tablist view to work.")
 (cl-defmethod navigel-entity-at-point (&context (major-mode (derived-mode navigel-tablist-mode)))
   (tabulated-list-get-id))
 
-(cl-defgeneric navigel-marked-entities (&optional at-point-if-empty)
+(cl-defgeneric navigel-marked-entities (&optional _at-point-if-empty)
   "Return a list of entities that are selected.
 If no entity is selected and AT-POINT-IF-EMPTY is non-nil, return
-a list with just the entity at point.")
+a list with just the entity at point."
+  nil)
 
 (cl-defmethod navigel-marked-entities (&context (major-mode (derived-mode navigel-tablist-mode))
                                                 &optional at-point-if-empty)
