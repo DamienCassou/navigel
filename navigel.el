@@ -252,8 +252,9 @@ If TARGET is non-nil and is in buffer, move point to it.
 Interactively, ENTITY is either the element at point or the user
 is asked for a top level ENTITY."
   ;; save navigel-app because (navigel-tablist-mode) will reset it
-  (let ((app navigel-app))
-    (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
+  (let ((app navigel-app)
+        (buffer (get-buffer-create (navigel-entity-buffer entity))))
+    (with-current-buffer buffer
       (navigel-entity-tablist-mode entity)
       (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
@@ -267,7 +268,7 @@ is asked for a top level ENTITY."
       (setq-local tabulated-list-format (navigel-tablist-format entity))
       (tabulated-list-init-header)
       (navigel-refresh target)
-      (switch-to-buffer (current-buffer)))))
+      (switch-to-buffer buffer))))
 
 (defun navigel--save-state ()
   "Return an object representing the state of the current buffer.
