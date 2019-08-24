@@ -295,10 +295,13 @@ The state contains the entity at point, the column of point, and the marked enti
           (when (navigel-go-to-entity entity)
             (tablist-put-mark)))))))
 
-(defun navigel-refresh (&optional target)
+(defun navigel-refresh (&optional target callback)
   "Compute `navigel-entity' children and list those in the current buffer.
 
-If TARGET is non-nil and is in buffer, move point to it."
+If TARGET is non-nil and is in buffer, move point to it.
+
+If CALLBACK is non nil, execute it when the buffer has been
+refreshed."
   (let ((entity navigel-entity)
         ;; save navigel-app so we can rebind below
         (app navigel-app))
@@ -321,6 +324,8 @@ If TARGET is non-nil and is in buffer, move point to it."
            (when target
              (navigel-go-to-entity target))
            (run-hooks 'navigel-changed-hook)
+           (when callback
+             (funcall callback))
            (message "Ready!")))))))
 
 (defun navigel-revert-buffer (&rest _args)
