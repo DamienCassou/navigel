@@ -49,6 +49,10 @@
   "Normal hook run after a navigel's tablist buffer has been refreshed or populated."
   :type 'hook)
 
+(defcustom navigel-init-done-hook nil
+  "Normal hook run after a navigel's tablist buffer has been initially populated."
+  :type 'hook)
+
 
 ;; Private variables
 
@@ -267,7 +271,11 @@ is asked for a top level ENTITY."
                   #'navigel--imenu-extract-index-name)
       (setq-local tabulated-list-format (navigel-tablist-format entity))
       (tabulated-list-init-header)
-      (navigel-refresh target)
+      (navigel-refresh
+       target
+       (lambda ()
+         (with-current-buffer buffer
+           (run-hooks 'navigel-init-done-hook))))
       (switch-to-buffer buffer))))
 
 (defun navigel--save-state ()
