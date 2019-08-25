@@ -5,7 +5,7 @@
 ;; Author: Damien Cassou <damien@cassou.me>
 ;; Url: https://gitlab.petton.fr/DamienCassou/navigel
 ;; Package-requires: ((emacs "25.1") (tablist "1.0"))
-;; Version: 0.3.0
+;; Version: 0.4.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -39,6 +39,19 @@
 
 (require 'tablist)
 (require 'seq)
+
+
+(defgroup navigel nil
+  "Navigel."
+  :group 'magit-extensions)
+
+(defcustom navigel-changed-hook nil
+  "Normal hook run after a navigel's tablist buffer has been refreshed or populated."
+  :type 'hook)
+
+(defcustom navigel-init-done-hook nil
+  "Normal hook run after a navigel's tablist buffer has been initially populated."
+  :type 'hook)
 
 
 ;; Private variables
@@ -75,7 +88,7 @@ This function is used as a value for
   (unless (bobp)
     (forward-line -1)))
 
-(defun navigel--go-to-entity (entity)
+(defun navigel-go-to-entity (entity)
   "Move point to ENTITY.
 Return non-nil if ENTITY is found, nil otherwise."
   (goto-char (point-min))
@@ -134,10 +147,34 @@ This method must be overridden for any tablist view to work.")
 (cl-defmethod navigel-entity-at-point (&context (major-mode (derived-mode navigel-tablist-mode)))
   (tabulated-list-get-id))
 
+(cl-defgeneric navigel-marked-entities (&optional _at-point-if-empty)
+  "Return a list of entities that are selected.
+If no entity is selected and AT-POINT-IF-EMPTY is non-nil, return
+a list with just the entity at point."
+  nil)
+
+(cl-defmethod navigel-marked-entities (&context (major-mode (derived-mode navigel-tablist-mode))
+                                                &optional at-point-if-empty)
+  ;; `tablist-get-marked-items' automatically includes the entity at
+  ;; point if no entity is marked. We have to remove it unless
+  ;; `at-point-if-empty' is non-nil.
+  (let ((entities (mapcar #'car (tablist-get-marked-items))))
+    (if (or (> (length entities) 1)
+            (save-excursion ;; check if the entity is really marked
+              (navigel-go-to-entity (car entities))
+              (tablist-get-mark-state))
+            at-point-if-empty)
+        entities
+      (list))))
+
 (cl-defgeneric navigel-entity-buffer (entity)
   "Return a buffer name for ENTITY.
 The default name is based on `navigel-app' and `navigel-buffer-name'."
   (format "*%s-%s*" navigel-app (navigel-buffer-name entity)))
+
+(cl-defgeneric navigel-entity-tablist-mode (_entity)
+  "Enable the `major-mode' most suited to display children of ENTITY."
+  (navigel-tablist-mode))
 
 (cl-defgeneric navigel-tablist-format (_entity)
   "Return a vector specifying columns to display ENTITY's children.
@@ -160,6 +197,28 @@ By default, list ENTITY's children in a tabulated list.
 "
   (navigel-list-children entity target))
 
+(cl-defgeneric navigel-parent-to-open (entity)
+  "Return an indication of what to open if asked to open the parent of entity at point.
+Return nil if there is no parent to open.
+
+The return value is (PARENT . ENTITY), where PARENT is the entity
+to open and ENTITY is the entity to move point to."
+  (cons (navigel-parent entity) entity))
+
+(cl-defmethod navigel-parent-to-open (entity &context (major-mode navigel-tablist-mode))
+  ;; Override default implementation because, in navigel-tablist-mode,
+  ;; opening the parent of the entity at point would usually result in
+  ;; opening the current buffer again. This is because the current
+  ;; buffer typically already displays the parent of the entity at
+  ;; point.
+  (let* ((parent (navigel-parent entity))
+         (ancestor (and parent (navigel-parent parent))))
+    (cond ((and ancestor (navigel-equal parent navigel-entity))
+           (cons ancestor parent))
+          ((and parent (not (navigel-equal parent navigel-entity)))
+           (cons parent entity))
+          (t nil))))
+
 (cl-defgeneric navigel-delete (_entity &optional _callback)
   "Remove ENTITY from its parent.
 If non-nil, call CALLBACK with no parameter when done."
@@ -180,7 +239,7 @@ callback to call when the mapping is done."
     (let ((result (make-vector (length list) nil))
           (count 0))
       (cl-loop for index below (length list)
-               for item = (seq-elt list index)
+               for item in list
                do (let ((index index) (item item))
                     (funcall
                      mapfn
@@ -219,9 +278,10 @@ If TARGET is non-nil and is in buffer, move point to it.
 Interactively, ENTITY is either the element at point or the user
 is asked for a top level ENTITY."
   ;; save navigel-app because (navigel-tablist-mode) will reset it
-  (let ((app navigel-app))
-    (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
-      (navigel-tablist-mode)
+  (let ((app navigel-app)
+        (buffer (get-buffer-create (navigel-entity-buffer entity))))
+    (with-current-buffer buffer
+      (navigel-entity-tablist-mode entity)
       (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
       (setq-local navigel-app app)
@@ -233,53 +293,86 @@ is asked for a top level ENTITY."
                   #'navigel--imenu-extract-index-name)
       (setq-local tabulated-list-format (navigel-tablist-format entity))
       (tabulated-list-init-header)
-      (navigel-refresh target)
-      (switch-to-buffer (current-buffer)))))
+      (navigel-refresh
+       target
+       (lambda ()
+         (with-current-buffer buffer
+           (run-hooks 'navigel-init-done-hook))))
+      (switch-to-buffer buffer))))
 
-(defun navigel-refresh (&optional target)
+(defun navigel-open-parent (&optional entity)
+  "Open in a new buffer the parent of ENTITY, entity at point if nil."
+  (interactive (list (navigel-entity-at-point)))
+  (when entity
+    (pcase (navigel-parent-to-open entity)
+      (`(,parent . ,entity) (navigel-open parent entity))
+      (_ (message "No parent to go to")))))
+
+(defun navigel--save-state ()
+  "Return an object representing the state of the current buffer.
+This should be restored with `navigel--restore-state'.
+
+The state contains the entity at point, the column of point, and the marked entities."
+  `(
+    (entity-at-point . ,(navigel-entity-at-point))
+    (column . ,(current-column))
+    (marked-entities . ,(navigel-marked-entities))))
+
+(defun navigel--restore-state (state)
+  "Restore STATE.  This was saved with `navigel--save-state'."
+  (let-alist state
+    (if .entity-at-point
+        (navigel-go-to-entity .entity-at-point)
+      (setf (point) (point-min)))
+    (when .column
+      (setf (point) (line-beginning-position))
+      (forward-char .column))
+    (when .marked-entities
+      (save-excursion
+        (dolist (entity .marked-entities)
+          (when (navigel-go-to-entity entity)
+            (tablist-put-mark)))))))
+
+(defun navigel-refresh (&optional target callback)
   "Compute `navigel-entity' children and list those in the current buffer.
 
-If TARGET is non-nil and is in buffer, move point to it."
+If TARGET is non-nil and is in buffer, move point to it.
+
+If CALLBACK is non nil, execute it when the buffer has been
+refreshed."
   (let ((entity navigel-entity)
         ;; save navigel-app so we can rebind below
         (app navigel-app))
-    (message "Refreshing…")
+    (message (if (equal (point-min) (point-max))
+                 "Populating…"
+               "Refreshing…"))
     (navigel-children
      entity
      (lambda (children)
        ;; restore navigel-app
-       (let ((navigel-app app))
+       (let ((navigel-app app) state)
          (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
+           (setq state (navigel--save-state))
            (setq-local tabulated-list-entries
                        (mapcar
                         (lambda (child) (list child (navigel-entity-to-columns child)))
                         children))
            (tabulated-list-print)
+           (navigel--restore-state state)
            (when target
-             (navigel--go-to-entity target))
-           (message "Refreshed!")))))))
+             (navigel-go-to-entity target))
+           (run-hooks 'navigel-changed-hook)
+           (when callback
+             (funcall callback))
+           (message "Ready!")))))))
 
 (defun navigel-revert-buffer (&rest _args)
   "Compute `navigel-entity' children and list those in the current buffer."
   (navigel-refresh))
 
-(defun navigel-tablist-open-entity-parent-at-point ()
-  "Open a buffer showing the parent of entity at point."
-  (interactive)
-  (let* ((entity (navigel-entity-at-point))
-         (parent (navigel-parent entity))
-         (ancestor (and parent (navigel-parent parent))))
-    (cond ((and ancestor (navigel-equal parent navigel-entity))
-           (navigel-open ancestor parent))
-          ((and parent (not (navigel-equal parent navigel-entity)))
-           (navigel-open parent entity))
-          (t
-           (message "open-entity-parent: %s" navigel-app)
-           (message "Entity `%s' has no parent." (navigel-tablist-name entity))))))
-
 (defvar navigel-tablist-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "^") #'navigel-tablist-open-entity-parent-at-point)
+    (define-key map (kbd "^") #'navigel-open-parent)
     map)
   "Keymap for `navigel-tablist-mode'.")
 
