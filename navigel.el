@@ -197,6 +197,28 @@ By default, list ENTITY's children in a tabulated list.
 "
   (navigel-list-children entity target))
 
+(cl-defgeneric navigel-parent-to-open (entity)
+  "Return an indication of what to open if asked to open the parent of entity at point.
+Return nil if there is no parent to open.
+
+The return value is (PARENT . ENTITY), where PARENT is the entity
+to open and ENTITY is the entity to move point to."
+  (cons (navigel-parent entity) entity))
+
+(cl-defmethod navigel-parent-to-open (entity &context (major-mode navigel-tablist-mode))
+  ;; Override default implementation because, in navigel-tablist-mode,
+  ;; opening the parent of the entity at point would usually result in
+  ;; opening the current buffer again. This is because the current
+  ;; buffer typically already displays the parent of the entity at
+  ;; point.
+  (let* ((parent (navigel-parent entity))
+         (ancestor (and parent (navigel-parent parent))))
+    (cond ((and ancestor (navigel-equal parent navigel-entity))
+           (cons ancestor parent))
+          ((and parent (not (navigel-equal parent navigel-entity)))
+           (cons parent entity))
+          (t nil))))
+
 (cl-defgeneric navigel-delete (_entity &optional _callback)
   "Remove ENTITY from its parent.
 If non-nil, call CALLBACK with no parameter when done."
@@ -278,6 +300,14 @@ is asked for a top level ENTITY."
            (run-hooks 'navigel-init-done-hook))))
       (switch-to-buffer buffer))))
 
+(defun navigel-open-parent (&optional entity)
+  "Open in a new buffer the parent of ENTITY, entity at point if nil."
+  (interactive (list (navigel-entity-at-point)))
+  (when entity
+    (pcase (navigel-parent-to-open entity)
+      (`(,parent . ,entity) (navigel-open parent entity))
+      (_ (message "No parent to go to")))))
+
 (defun navigel--save-state ()
   "Return an object representing the state of the current buffer.
 This should be restored with `navigel--restore-state'.
@@ -340,22 +370,9 @@ refreshed."
   "Compute `navigel-entity' children and list those in the current buffer."
   (navigel-refresh))
 
-(defun navigel-tablist-open-entity-parent-at-point ()
-  "Open a buffer showing the parent of entity at point."
-  (interactive)
-  (let* ((entity (navigel-entity-at-point))
-         (parent (navigel-parent entity))
-         (ancestor (and parent (navigel-parent parent))))
-    (cond ((and ancestor (navigel-equal parent navigel-entity))
-           (navigel-open ancestor parent))
-          ((and parent (not (navigel-equal parent navigel-entity)))
-           (navigel-open parent entity))
-          (t
-           (message "No parent to go to.")))))
-
 (defvar navigel-tablist-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "^") #'navigel-tablist-open-entity-parent-at-point)
+    (define-key map (kbd "^") #'navigel-open-parent)
     map)
   "Keymap for `navigel-tablist-mode'.")
 
