@@ -5,7 +5,7 @@
 ;; Author: Damien Cassou <damien@cassou.me>
 ;; Url: https://gitlab.petton.fr/DamienCassou/navigel
 ;; Package-requires: ((emacs "25.1") (tablist "1.0"))
-;; Version: 0.4.0
+;; Version: 0.5.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -281,10 +281,15 @@ is asked for a top level ENTITY."
   (let ((app navigel-app)
         (buffer (get-buffer-create (navigel-entity-buffer entity))))
     (with-current-buffer buffer
+      ;; set navigel-app first because it is used on the line below to
+      ;; select the appropriate mode:
+      (setq-local navigel-app app)
       (navigel-entity-tablist-mode entity)
+      ;; restore navigel-app because is got erased by activating the major mode:
+      (setq-local navigel-app app)
       (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
-      (setq-local navigel-app app)
+
       (setq-local tablist-operations-function #'navigel--tablist-operation-function)
       (setq-local revert-buffer-function #'navigel-revert-buffer)
       (setq-local imenu-prev-index-position-function
