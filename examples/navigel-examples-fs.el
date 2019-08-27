@@ -56,16 +56,16 @@
 ;; How to get the children of an entity should be specified by
 ;; overriding the method `navigel-children':
 
-(cl-defmethod navigel-children (directory callback &context (navigel-app navigel-examples-fs))
+(navigel-method navigel-examples-fs navigel-children (directory callback)
   "Call CALLBACK with the files in DIRECTORY as parameter."
   (funcall callback (f-entries directory)))
 
-;; `cl-method' is used to override the methods of navigel.  To
-;; distinguish this override of `navigel-children' from other
-;; overrides made by other navigel clients, above code uses a context
-;; specializer. The context specializer is introduced with the
-;; `&context' keyword and followed by the name of the application
-;; saved in `navigel-app' in the command above.
+;; `navigel-method' (which is syntactic sugar around `cl-defmethod')
+;; is used to override the methods of navigel.  To distinguish this
+;; override of `navigel-children' from other overrides made by other
+;; navigel clients, the first parameter to `navigel-method' must be
+;; the name of the application saved in `navigel-app' in the command
+;; above.
 
 ;; At this point, you should be able to type `M-x
 ;; navigel-examples-fs-list-files RET' to get a buffer showing all
@@ -81,7 +81,7 @@
 ;; ".bashrc") as in all file browsers.  We can easily change that by
 ;; overriding the `navigel-name' method:
 
-(cl-defmethod navigel-name (file &context (navigel-app navigel-examples-fs))
+(navigel-method navigel-examples-fs navigel-name (file)
   (f-filename file))
 
 ;; This is much better.  With `RET', we can easily navigate from a
@@ -90,7 +90,7 @@
 ;; need to override the `navigel-parent' method whose responsibility
 ;; is to return the parent entity of the entity passed as parameter:
 
-(cl-defmethod navigel-parent (file &context (navigel-app navigel-examples-fs))
+(navigel-method navigel-examples-fs navigel-parent (file)
   (f-dirname file))
 
 ;; You should now be able to press `^' to go to the parent directory
@@ -101,7 +101,7 @@
 ;; pressing `RET' on a file opens the file itself.  This can be done
 ;; by overriding `navigel-open':
 
-(cl-defmethod navigel-open (file _target &context (navigel-app navigel-examples-fs))
+(navigel-method navigel-examples-fs navigel-open (file _target)
   (if (f-file-p file)
       (find-file file)
     (cl-call-next-method)))
@@ -122,7 +122,7 @@
 ;; We now specify the column values for each file by overriding
 ;; `navigel-entity-to-columns':
 
-(cl-defmethod navigel-entity-to-columns (file &context (navigel-app navigel-examples-fs))
+(navigel-method navigel-examples-fs navigel-entity-to-columns (file)
   (vector (number-to-string (navigel-examples-fs-size file))
           (navigel-name file)))
 
@@ -132,7 +132,7 @@
 ;; should look like.  This is done by overriding
 ;; `navigel-tablist-format':
 
-(cl-defmethod navigel-tablist-format (_entity &context (navigel-app navigel-examples-fs))
+(navigel-method navigel-examples-fs navigel-tablist-format (_entity)
   (vector (list "Size (B)" 10 nil :right-align t)
           (list "Name" 0 t)))
 
@@ -147,7 +147,7 @@
 ;; As a final step, we might want to be able to delete files from the
 ;; file system.  This can be done by overriding `navigel-delete':
 
-(cl-defmethod navigel-delete (file &context (navigel-app navigel-examples-fs) &optional callback)
+(navigel-method navigel-examples-fs navigel-delete (file &optional callback)
   (f-delete file)
   (funcall callback))
 

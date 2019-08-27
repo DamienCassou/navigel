@@ -314,6 +314,13 @@ refreshed."
              (funcall callback))
            (message "Ready!")))))))
 
+(defmacro navigel-method (app name args &rest body)
+  "Define a method NAME with ARGS and BODY.
+This method will only be active if `navigel-app' equals APP."
+  (declare (indent 3))
+  `(cl-defmethod ,name ,(navigel--insert-context-in-args app args)
+     ,@body))
+
 
 ;;; Private functions
 
@@ -380,6 +387,28 @@ The state contains the entity at point, the column of point, and the marked enti
 (defun navigel--revert-buffer (&rest _args)
   "Compute `navigel-entity' children and list those in the current buffer."
   (navigel-refresh))
+
+(defun navigel--insert-context-in-args (app args)
+  "Return an argument list with a &context specializer for APP within ARGS."
+  (let ((result (list))
+        (rest-args args))
+    (catch 'found-special-arg
+      (while rest-args
+        (let ((arg (car rest-args)))
+          (when (symbolp arg)
+            (when (eq arg '&context)
+              (throw 'found-special-arg
+                     (append (nreverse result)
+                             `(&context (navigel-app ,app))
+                             (cdr rest-args))))
+            (when (string= "&" (substring-no-properties (symbol-name arg) 0 1))
+              (throw 'found-special-arg
+                     (append (nreverse result)
+                             `(&context (navigel-app ,app))
+                             rest-args))))
+          (setq result (cons arg result))
+          (setq rest-args (cdr rest-args))))
+      (append (nreverse result) `(&context (navigel-app ,app))))))
 
 
 ;;; Major mode

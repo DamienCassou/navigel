@@ -7,6 +7,8 @@ LINT_CHECKDOC_FILES=$(wildcard *.el) $(wildcard test/*.el)
 LINT_PACKAGE_LINT_FILES=$(wildcard *.el)
 LINT_COMPILE_FILES=$(wildcard *.el) $(wildcard test/*.el)
 
+LINT_CHECKDOC_OPTIONS=--eval "(setq checkdoc-arguments-in-order-flag nil)"
+
 makel.mk:
 	# Download makel
 	@if [ -f ../makel/makel.mk ]; then \
