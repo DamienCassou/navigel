@@ -1,4 +1,4 @@
-;;; navigel-examples-fs.el --- Example of navigel to navigate the filesystem  -*- lexical-binding: t; -*-
+;;; navigel-ex-fs.el --- Example of navigel to navigate the filesystem  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2019  Damien Cassou
 
@@ -41,13 +41,13 @@
 ;; `navigel-open' on the initial entity.  Navigel also requires an
 ;; application name dynamically bound in the variable `navigel-app'.
 ;; This name is meant to disambiguate method definitions and is *not*
-;; visible to the user.  In this example, we use `navigel-examples-fs'
+;; visible to the user.  In this example, we use `navigel-ex-fs'
 ;; as name.  The code below defines the command:
 
-(defun navigel-examples-fs-list-files (&optional directory)
+(defun navigel-ex-fs-list-files (&optional directory)
   "List files of DIRECTORY, home directory if nil."
   (interactive (list (getenv "HOME")))
-  (let ((navigel-app 'navigel-examples-fs))
+  (let ((navigel-app 'navigel-ex-fs))
     (navigel-open (f-expand directory) nil)))
 
 ;; For this command to display the files in the home directory (i.e.,
@@ -56,7 +56,7 @@
 ;; How to get the children of an entity should be specified by
 ;; overriding the method `navigel-children':
 
-(navigel-method navigel-examples-fs navigel-children (directory callback)
+(navigel-method navigel-ex-fs navigel-children (directory callback)
   "Call CALLBACK with the files in DIRECTORY as parameter."
   (funcall callback (f-entries directory)))
 
@@ -68,7 +68,7 @@
 ;; above.
 
 ;; At this point, you should be able to type `M-x
-;; navigel-examples-fs-list-files RET' to get a buffer showing all
+;; navigel-ex-fs-list-files RET' to get a buffer showing all
 ;; files and folders in your home directory.  If you move the point to
 ;; a folder and press `RET', a new buffer should open listing its
 ;; files and folders.  If you type `M-x imenu RET', you can select one
@@ -81,7 +81,7 @@
 ;; ".bashrc") as in all file browsers.  We can easily change that by
 ;; overriding the `navigel-name' method:
 
-(navigel-method navigel-examples-fs navigel-name (file)
+(navigel-method navigel-ex-fs navigel-name (file)
   (f-filename file))
 
 ;; This is much better.  With `RET', we can easily navigate from a
@@ -90,7 +90,7 @@
 ;; need to override the `navigel-parent' method whose responsibility
 ;; is to return the parent entity of the entity passed as parameter:
 
-(navigel-method navigel-examples-fs navigel-parent (file)
+(navigel-method navigel-ex-fs navigel-parent (file)
   (f-dirname file))
 
 ;; You should now be able to press `^' to go to the parent directory
@@ -101,7 +101,7 @@
 ;; pressing `RET' on a file opens the file itself.  This can be done
 ;; by overriding `navigel-open':
 
-(navigel-method navigel-examples-fs navigel-open (file _target)
+(navigel-method navigel-ex-fs navigel-open (file _target)
   (if (f-file-p file)
       (find-file file)
     (cl-call-next-method)))
@@ -115,15 +115,15 @@
 ;; column representing the size of each file.  We start by
 ;; implementing a function returning the size of its file argument:
 
-(defun navigel-examples-fs-size (file)
+(defun navigel-ex-fs-size (file)
   "Return FILE size as number of bytes."
   (nth 7 (file-attributes file)))
 
 ;; We now specify the column values for each file by overriding
 ;; `navigel-entity-to-columns':
 
-(navigel-method navigel-examples-fs navigel-entity-to-columns (file)
-  (vector (number-to-string (navigel-examples-fs-size file))
+(navigel-method navigel-ex-fs navigel-entity-to-columns (file)
+  (vector (number-to-string (navigel-ex-fs-size file))
           (navigel-name file)))
 
 ;; The code above specifies that the first column of a file line will
@@ -132,7 +132,7 @@
 ;; should look like.  This is done by overriding
 ;; `navigel-tablist-format':
 
-(navigel-method navigel-examples-fs navigel-tablist-format (_entity)
+(navigel-method navigel-ex-fs navigel-tablist-format (_entity)
   (vector (list "Size (B)" 10 nil :right-align t)
           (list "Name" 0 t)))
 
@@ -147,12 +147,12 @@
 ;; As a final step, we might want to be able to delete files from the
 ;; file system.  This can be done by overriding `navigel-delete':
 
-(navigel-method navigel-examples-fs navigel-delete (file &optional callback)
+(navigel-method navigel-ex-fs navigel-delete (file &optional callback)
   (f-delete file)
   (funcall callback))
 
 ;; The `funcall' is here to tell navigel that deletion is
 ;; finished. You can now mark files with `m' and delete them with `D'.
 
-(provide 'navigel-examples-fs)
-;;; navigel-examples-fs.el ends here
+(provide 'navigel-ex-fs)
+;;; navigel-ex-fs.el ends here
