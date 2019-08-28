@@ -5,7 +5,7 @@
 ;; Author: Damien Cassou <damien@cassou.me>
 ;; Url: https://gitlab.petton.fr/DamienCassou/navigel
 ;; Package-requires: ((emacs "25.1") (tablist "1.0"))
-;; Version: 0.5.0
+;; Version: 0.6.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ OPERATION and ARGS are defined by `tablist-operations-function'."
   (cl-case operation
     (supported-operations '(find-entry delete))
     (find-entry (navigel-open (car args) nil))
-    (delete (navigel-delete (car args) #'navigel-revert-buffer))))
+    (delete (navigel-delete (car args) #'navigel--revert-buffer))))
 
 (defun navigel--imenu-extract-index-name ()
   "Return the name of entity at point for `imenu'.
@@ -195,7 +195,7 @@ If TARGET is non-nil and is in buffer, move point to it.
 
 By default, list ENTITY's children in a tabulated list.
 "
-  (navigel-list-children entity target))
+  (navigel--list-children entity target))
 
 (cl-defgeneric navigel-parent-to-open (entity)
   "Return an indication of what to open if asked to open the parent of entity at point.
@@ -228,6 +228,9 @@ If non-nil, call CALLBACK with no parameter when done."
   "Remove each item of ENTITIES from its parent.
 If non-nil, call CALLBACK with no parameter when done."
   (navigel-async-mapc #'navigel-delete entities callback))
+
+
+;;; Public functions
 
 (defun navigel-async-mapcar (mapfn list callback)
   "Apply MAPFN to each element of LIST and pass result to CALLBACK.
@@ -270,41 +273,6 @@ computing for the all elements of LIST."
    list
    (lambda (_result) (funcall callback))))
 
-(defun navigel-list-children (entity &optional target)
-  "Open a new buffer showing ENTITY's children.
-
-If TARGET is non-nil and is in buffer, move point to it.
-
-Interactively, ENTITY is either the element at point or the user
-is asked for a top level ENTITY."
-  ;; save navigel-app because (navigel-tablist-mode) will reset it
-  (let ((app navigel-app)
-        (buffer (get-buffer-create (navigel-entity-buffer entity))))
-    (with-current-buffer buffer
-      ;; set navigel-app first because it is used on the line below to
-      ;; select the appropriate mode:
-      (setq-local navigel-app app)
-      (navigel-entity-tablist-mode entity)
-      ;; restore navigel-app because is got erased by activating the major mode:
-      (setq-local navigel-app app)
-      (setq-local tabulated-list-padding 2) ; for `tablist'
-      (setq-local navigel-entity entity)
-
-      (setq-local tablist-operations-function #'navigel--tablist-operation-function)
-      (setq-local revert-buffer-function #'navigel-revert-buffer)
-      (setq-local imenu-prev-index-position-function
-                  #'navigel--imenu-prev-index-position)
-      (setq-local imenu-extract-index-name-function
-                  #'navigel--imenu-extract-index-name)
-      (setq-local tabulated-list-format (navigel-tablist-format entity))
-      (tabulated-list-init-header)
-      (navigel-refresh
-       target
-       (lambda ()
-         (with-current-buffer buffer
-           (run-hooks 'navigel-init-done-hook))))
-      (switch-to-buffer buffer))))
-
 (defun navigel-open-parent (&optional entity)
   "Open in a new buffer the parent of ENTITY, entity at point if nil."
   (interactive (list (navigel-entity-at-point)))
@@ -312,31 +280,6 @@ is asked for a top level ENTITY."
     (pcase (navigel-parent-to-open entity)
       (`(,parent . ,entity) (navigel-open parent entity))
       (_ (message "No parent to go to")))))
-
-(defun navigel--save-state ()
-  "Return an object representing the state of the current buffer.
-This should be restored with `navigel--restore-state'.
-
-The state contains the entity at point, the column of point, and the marked entities."
-  `(
-    (entity-at-point . ,(navigel-entity-at-point))
-    (column . ,(current-column))
-    (marked-entities . ,(navigel-marked-entities))))
-
-(defun navigel--restore-state (state)
-  "Restore STATE.  This was saved with `navigel--save-state'."
-  (let-alist state
-    (if .entity-at-point
-        (navigel-go-to-entity .entity-at-point)
-      (setf (point) (point-min)))
-    (when .column
-      (setf (point) (line-beginning-position))
-      (forward-char .column))
-    (when .marked-entities
-      (save-excursion
-        (dolist (entity .marked-entities)
-          (when (navigel-go-to-entity entity)
-            (tablist-put-mark)))))))
 
 (defun navigel-refresh (&optional target callback)
   "Compute `navigel-entity' children and list those in the current buffer.
@@ -371,9 +314,104 @@ refreshed."
              (funcall callback))
            (message "Ready!")))))))
 
-(defun navigel-revert-buffer (&rest _args)
+(defmacro navigel-method (app name args &rest body)
+  "Define a method NAME with ARGS and BODY.
+This method will only be active if `navigel-app' equals APP."
+  (declare (indent 3))
+  `(cl-defmethod ,name ,(navigel--insert-context-in-args app args)
+     ,@body))
+
+
+;;; Private functions
+
+(defun navigel--list-children (entity &optional target)
+  "Open a new buffer showing ENTITY's children.
+
+If TARGET is non-nil and is in buffer, move point to it.
+
+Interactively, ENTITY is either the element at point or the user
+is asked for a top level ENTITY."
+  ;; save navigel-app because (navigel-tablist-mode) will reset it
+  (let ((app navigel-app)
+        (buffer (get-buffer-create (navigel-entity-buffer entity))))
+    (with-current-buffer buffer
+      ;; set navigel-app first because it is used on the line below to
+      ;; select the appropriate mode:
+      (setq-local navigel-app app)
+      (navigel-entity-tablist-mode entity)
+      ;; restore navigel-app because is got erased by activating the major mode:
+      (setq-local navigel-app app)
+      (setq-local tabulated-list-padding 2) ; for `tablist'
+      (setq-local navigel-entity entity)
+
+      (setq-local tablist-operations-function #'navigel--tablist-operation-function)
+      (setq-local revert-buffer-function #'navigel--revert-buffer)
+      (setq-local imenu-prev-index-position-function
+                  #'navigel--imenu-prev-index-position)
+      (setq-local imenu-extract-index-name-function
+                  #'navigel--imenu-extract-index-name)
+      (setq-local tabulated-list-format (navigel-tablist-format entity))
+      (tabulated-list-init-header)
+      (navigel-refresh
+       target
+       (lambda ()
+         (with-current-buffer buffer
+           (run-hooks 'navigel-init-done-hook))))
+      (switch-to-buffer buffer))))
+
+(defun navigel--save-state ()
+  "Return an object representing the state of the current buffer.
+This should be restored with `navigel--restore-state'.
+
+The state contains the entity at point, the column of point, and the marked entities."
+  `(
+    (entity-at-point . ,(navigel-entity-at-point))
+    (column . ,(current-column))
+    (marked-entities . ,(navigel-marked-entities))))
+
+(defun navigel--restore-state (state)
+  "Restore STATE.  This was saved with `navigel--save-state'."
+  (let-alist state
+    (if .entity-at-point
+        (navigel-go-to-entity .entity-at-point)
+      (setf (point) (point-min)))
+    (when .column
+      (setf (point) (line-beginning-position))
+      (forward-char .column))
+    (when .marked-entities
+      (save-excursion
+        (dolist (entity .marked-entities)
+          (when (navigel-go-to-entity entity)
+            (tablist-put-mark)))))))
+
+(defun navigel--revert-buffer (&rest _args)
   "Compute `navigel-entity' children and list those in the current buffer."
   (navigel-refresh))
+
+(defun navigel--insert-context-in-args (app args)
+  "Return an argument list with a &context specializer for APP within ARGS."
+  (let ((result (list))
+        (rest-args args))
+    (catch 'found-special-arg
+      (while rest-args
+        (let ((arg (car rest-args)))
+          (when (symbolp arg)
+            (when (eq arg '&context)
+              (throw 'found-special-arg
+                     (append (nreverse result)
+                             `(&context (navigel-app ,app))
+                             (cdr rest-args))))
+            (when (string= "&" (substring-no-properties (symbol-name arg) 0 1))
+              (throw 'found-special-arg
+                     (append (nreverse result)
+                             `(&context (navigel-app ,app))
+                             rest-args))))
+          (setq result (cons arg result))
+          (setq rest-args (cdr rest-args))))
+      (append (nreverse result) `(&context (navigel-app ,app))))))
+
+
+;;; Major mode
 
 (defvar navigel-tablist-mode-map
   (let ((map (make-sparse-keymap)))

@@ -50,7 +50,7 @@ This code is a library and is meant for Emacs Lisp developers. The
 source code is well documented and organized in sections. Please have
 a look at it.
 
-Please have a look at the [[file:examples/navigel-examples-fs.el][examples/navigel-examples-fs.el]] file for an
+Please have a look at the [[file:examples/navigel-ex-fs.el][examples/navigel-ex-fs.el]] file for an
 example on how to use the library. This file guides the reader through
 an implementation of a tablist-based directory navigator with support
 for marking and deleting:
