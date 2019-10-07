@@ -39,6 +39,7 @@
 
 (require 'tablist)
 (require 'seq)
+(require 'bookmark)
 
 
 ;; Customization
@@ -104,6 +105,14 @@ Return non-nil if ENTITY is found, nil otherwise."
 (cl-generic-define-context-rewriter navigel-app (app)
   `(navigel-app (eql ,app)))
 
+(defun navigel--bookmark-jump (bookmark)
+  "Open a navigel buffer showing BOOKMARK."
+  (let ((entity (bookmark-prop-get bookmark 'navigel-entity))
+        (target (bookmark-prop-get bookmark 'navigel-target))
+        (navigel-app (bookmark-prop-get bookmark 'navigel-app)))
+    (navigel-open entity target)
+    (message "Current buffer at the end of navigel--bookmark-jump: %s" (current-buffer))))
+
 
 ;; Generic methods: Those methods are the one you may override.
 
@@ -125,6 +134,10 @@ overridden separately if necessary."
 
 (cl-defgeneric navigel-imenu-name (entity)
   "Return a string representing ENTITY for `imenu'."
+  (navigel-name entity))
+
+(cl-defgeneric navigel-bookmark-name (entity)
+  "Return a string representing ENTITY for `bookmark'."
   (navigel-name entity))
 
 (cl-defgeneric navigel-children (entity callback)
@@ -231,6 +244,18 @@ If non-nil, call CALLBACK with no parameter when done."
 If non-nil, call CALLBACK with no parameter when done."
   (navigel-async-mapc #'navigel-delete entities callback))
 
+(cl-defmethod navigel-make-bookmark ()
+  "Return a record to bookmark the current buffer.
+
+This function is to be used as value for
+`bookmark-make-record-function' in navigel buffers."
+  `(
+    ,(navigel-bookmark-name navigel-entity)
+    ((handler . ,#'navigel--bookmark-jump)
+     (navigel-entity . ,navigel-entity)
+     (navigel-target . ,(navigel-entity-at-point))
+     (navigel-app . ,navigel-app))))
+
 
 ;;; Public functions
 
@@ -326,6 +351,8 @@ This method will only be active if `navigel-app' equals APP."
 
 ;;; Private functions
 
+(defvar bookmark-make-record-function)
+
 (defun navigel--list-children (entity &optional target)
   "Open a new buffer showing ENTITY's children.
 
@@ -353,6 +380,7 @@ is asked for a top level ENTITY."
       (setq-local imenu-extract-index-name-function
                   #'navigel--imenu-extract-index-name)
       (setq-local tabulated-list-format (navigel-tablist-format entity))
+      (setq-local bookmark-make-record-function #'navigel-make-bookmark)
       (tabulated-list-init-header)
       (navigel-refresh
        target

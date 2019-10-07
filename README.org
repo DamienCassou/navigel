@@ -38,6 +38,8 @@ Some features of navigel include:
 - pressing ~m~ marks the entity at point;
 - pressing ~d~ deletes the marked entities.
 
+Navigel automatically adds support for [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Bookmarks.html#Bookmarks][bookmarks]] and [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Imenu.html#Imenu][imenu]].
+
 This package depends on [[https://github.com/politza/tablist][tablist]] to get support for marking, deletion
 and more.  On top of the tablist package, navigel provides an easy way
 to specify the content of your tabulated lists: through entities
