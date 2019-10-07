@@ -358,8 +358,8 @@ is asked for a top level ENTITY."
        target
        (lambda ()
          (with-current-buffer buffer
-           (run-hooks 'navigel-init-done-hook))))
-      (switch-to-buffer buffer))))
+           (run-hooks 'navigel-init-done-hook)))))
+    (switch-to-buffer buffer)))
 
 (defun navigel--save-state ()
   "Return an object representing the state of the current buffer.
