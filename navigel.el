@@ -41,6 +41,8 @@
 (require 'seq)
 
 
+;; Customization
+
 (defgroup navigel nil
   "Navigel."
   :group 'magit-extensions)
