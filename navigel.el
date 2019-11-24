@@ -56,6 +56,10 @@
   "Normal hook run after a navigel's tablist buffer has been initially populated."
   :type 'hook)
 
+(defcustom navigel-display-messages t
+  "Whether to display navigel's informative messages in the echo area."
+  :type 'boolean)
+
 
 ;; Private variables
 
@@ -112,6 +116,14 @@ Return non-nil if ENTITY is found, nil otherwise."
         (navigel-app (bookmark-prop-get bookmark 'navigel-app)))
     (navigel-open entity target)
     (message "Current buffer at the end of navigel--bookmark-jump: %s" (current-buffer))))
+
+(defun navigel--message (&rest args)
+  "Display a message in the echo area.
+This function only has an effect when `navigel-display-messages'
+is true. ARGS are the message format followed by any arguments it
+takes."
+  (when navigel-display-messages
+    (apply #'message args)))
 
 
 ;; Generic methods: Those methods are the one you may override.
@@ -318,9 +330,9 @@ refreshed."
   (let ((entity navigel-entity)
         ;; save navigel-app so we can rebind below
         (app navigel-app))
-    (message (if (equal (point-min) (point-max))
-                 "Populating…"
-               "Refreshing…"))
+    (navigel--message (if (equal (point-min) (point-max))
+                          "Populating…"
+                        "Refreshing…"))
     (navigel-children
      entity
      (lambda (children)
@@ -339,7 +351,7 @@ refreshed."
            (run-hooks 'navigel-changed-hook)
            (when callback
              (funcall callback))
-           (message "Ready!")))))))
+           (navigel--message "Ready!")))))))
 
 (defmacro navigel-method (app name args &rest body)
   "Define a method NAME with ARGS and BODY.
