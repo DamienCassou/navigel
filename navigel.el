@@ -120,8 +120,8 @@ Return non-nil if ENTITY is found, nil otherwise."
 (defun navigel--message (&rest args)
   "Display a message in the echo area.
 This function only has an effect when `navigel-display-messages'
-is true. ARGS are the message format followed by any arguments it
-takes."
+is true.  ARGS are the message format followed by any arguments
+it takes."
   (when navigel-display-messages
     (apply #'message args)))
 
