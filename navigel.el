@@ -185,7 +185,7 @@ a list with just the entity at point."
                                                 &optional at-point-if-empty)
   "Return a list with marked entities for MAJOR-MODE derived from a tablist.
 
-AT-POINT-IF-EMPTY indicates if we use the entity at point if none
+AT-POINT-IF-EMPTY indicates whether to return the entity at point if none
 is marked."
   ;; `tablist-get-marked-items' automatically includes the entity at
   ;; point if no entity is marked. We have to remove it unless
@@ -212,6 +212,12 @@ The default name is based on `navigel-app' and `navigel-buffer-name'."
   "Return a vector specifying columns to display ENTITY's children.
 The return value is set as `tabulated-list-format'."
   (vector (list "Name" 0 t)))
+
+(cl-defgeneric navigel-tablist-format-children (_entity &optional _children)
+  "Return a vector specifying columns to display ENTITY's CHILDREN.
+The return value is set as `tabulated-list-format' after the list
+of children has been retrieved, unless this call returns nil."
+  nil)
 
 (cl-defgeneric navigel-entity-to-columns (entity)
   "Return the column descriptors to display ENTITY in a tabulated list.
@@ -341,6 +347,10 @@ refreshed."
     (navigel-children
      entity
      (lambda (children)
+       (let ((new-format (navigel-tablist-format-children entity children)))
+         (when new-format
+           (setq-local tabulated-list-format new-format)
+           (tabulated-list-init-header)))
        ;; restore navigel-app
        (let ((navigel-app app) state)
          (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
