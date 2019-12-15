@@ -172,6 +172,7 @@ This method must be overridden for any tablist view to work.")
   "Return the entity at point or nil if none.")
 
 (cl-defmethod navigel-entity-at-point (&context (major-mode (derived-mode navigel-tablist-mode)))
+  "Return the entity at point in the context of a mode derived from MAJOR-MODE."
   (or (tabulated-list-get-id) navigel-entity))
 
 (cl-defgeneric navigel-marked-entities (&optional _at-point-if-empty)
@@ -182,6 +183,10 @@ a list with just the entity at point."
 
 (cl-defmethod navigel-marked-entities (&context (major-mode (derived-mode navigel-tablist-mode))
                                                 &optional at-point-if-empty)
+  "Return a list with marked entities for MAJOR-MODE derived from a tablist.
+
+AT-POINT-IF-EMPTY indicates if we use the entity at point if none
+is marked."
   ;; `tablist-get-marked-items' automatically includes the entity at
   ;; point if no entity is marked. We have to remove it unless
   ;; `at-point-if-empty' is non-nil.
@@ -220,12 +225,11 @@ The vector should be compatible to the one defined with
   "Open a buffer displaying ENTITY.
 If TARGET is non-nil and is in buffer, move point to it.
 
-By default, list ENTITY's children in a tabulated list.
-"
+By default, list ENTITY's children in a tabulated list."
   (navigel--list-children entity target))
 
 (cl-defgeneric navigel-parent-to-open (entity)
-  "Return an indication of what to open if asked to open the parent of entity at point.
+  "Return an indication of what to open if asked to open the parent of ENTITY.
 Return nil if there is no parent to open.
 
 The return value is (PARENT . ENTITY), where PARENT is the entity
@@ -233,6 +237,7 @@ to open and ENTITY is the entity to move point to."
   (cons (navigel-parent entity) entity))
 
 (cl-defmethod navigel-parent-to-open (entity &context (major-mode navigel-tablist-mode))
+  "Parent or ENTITY to open in the context of MAJOR-MODE derived from tablist."
   ;; Override default implementation because, in navigel-tablist-mode,
   ;; opening the parent of the entity at point would usually result in
   ;; opening the current buffer again. This is because the current
