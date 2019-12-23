@@ -144,6 +144,13 @@
 ;; buffer width.  Read the documentation of `tabulated-list-format' to
 ;; get more information about the column format specification.
 
+;; By default, navigel first sets the header information and then
+;; proceeds to read the children of the current entity to display
+;; them.  If you need to use the list of children to decide the format
+;; of the header, you can override `navigel-tablist-format-children',
+;; which is called _after_ the entities returned by `navigel-children'
+;; are available.
+
 ;; As a final step, we might want to be able to delete files from the
 ;; file system.  This can be done by overriding `navigel-delete':
 
