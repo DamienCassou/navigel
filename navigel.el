@@ -1,6 +1,6 @@
 ;;; navigel.el --- Facilitate the creation of tabulated-list based UIs -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019  Damien Cassou
+;; Copyright (C) 2019, 2020  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
 ;; Url: https://gitlab.petton.fr/DamienCassou/navigel
@@ -39,6 +39,7 @@
 
 (require 'tablist)
 (require 'seq)
+(require 'map)
 (require 'bookmark)
 
 
@@ -60,6 +61,15 @@
   "Whether to display navigel's informative messages in the echo area."
   :type 'boolean)
 
+(defcustom navigel-single-buffer-apps nil
+  "Applications using a single buffer to display all entities.
+
+Either a list of symbols denoting applications, t for all
+applications or nil, the default, for none."
+  :type '(choice (const :tag "None" nil)
+                 (const :tag "All applications" t)
+                 (repeat (symbol :tag "Application"))))
+
 
 ;; Private variables
 
@@ -68,6 +78,19 @@
 
 (defvar navigel-app nil
   "Specify the application that was used to generate the buffer.")
+
+(defvar navigel-single-buffers nil
+  "An alist of (APP . BUFFER) associating app symbols with their buffer name.
+
+This name is used only for applications that are working in single-buffer mode.")
+
+(defvar-local navigel--state-cache nil
+  "Cache of entity states for single-buffer applications.
+
+This cache is an alist of (APP . STATE) pairs, where in turn
+STATE is an alist of (ENTITY-ID . ENTITY-STATE) pairs,
+associating to each entity that has been displayed by APP in this
+buffer its last state (as returned by `navigel--save-state').")
 
 
 ;; Private functions
@@ -136,9 +159,24 @@ The returned value is the default for `navigel-buffer-name',
 overridden separately if necessary."
   (format "%s" entity))
 
+(cl-defgeneric navigel-entity-id (entity)
+  "Return a possibly unique identifier for the given ENTITY.
+
+Under some circumstances, Navigel will cache information about
+displayed entities, using its id as key.  By default, this
+function calls `navigel-name', which should be good enough in the
+majority of cases."
+  (navigel-name entity))
+
 (cl-defgeneric navigel-buffer-name (entity)
   "Return a string representing ENTITY in the buffer's name."
   (navigel-name entity))
+
+(cl-defgeneric navigel-single-buffer-name (app entity)
+  "Return a string representing ENTITY in the buffer's name, for single-buffer APP."
+  (let ((app (or app navigel-app 'navigel))
+        (suffix (if entity (format " - %s" (navigel-buffer-name entity)) "")))
+    (format "*%s%s*" app suffix)))
 
 (cl-defgeneric navigel-tablist-name (entity)
   "Return a string representing ENTITY in tablist columns."
@@ -282,6 +320,22 @@ This function is to be used as value for
 
 ;;; Public functions
 
+(defun navigel-single-buffer-app-p (app)
+  "Check whether APP is registered as a single-buffer application.
+
+See also `navigel-single-buffer-apps'."
+  (or (eq t navigel-single-buffer-apps)
+      (memq app navigel-single-buffer-apps)))
+
+(defun navigel-register-single-buffer-app (app)
+  "Register APP as a single buffer application."
+  (or (navigel-single-buffer-app-p app)
+      (add-to-list 'navigel-single-buffer-apps app)))
+
+(defun navigel-app-buffer (app)
+  "If APP is a single-buffer application, return its buffer."
+  (navigel--app-buffer app t))
+
 (defun navigel-async-mapcar (mapfn list callback)
   "Apply MAPFN to each element of LIST and pass result to CALLBACK.
 
@@ -347,20 +401,21 @@ refreshed."
     (navigel-children
      entity
      (lambda (children)
-       (let ((new-format (navigel-tablist-format-children entity children)))
-         (when new-format
-           (setq-local tabulated-list-format new-format)
-           (tabulated-list-init-header)))
        ;; restore navigel-app
        (let ((navigel-app app) state)
-         (with-current-buffer (get-buffer-create (navigel-entity-buffer entity))
+         (with-current-buffer (navigel--entity-buffer app entity)
+           (let ((fmt (navigel-tablist-format-children entity children)))
+             (when fmt
+               (setq-local tabulated-list-format fmt)
+               (tabulated-list-init-header)))
            (setq state (navigel--save-state))
            (setq-local tabulated-list-entries
-                       (mapcar
-                        (lambda (child) (list child (navigel-entity-to-columns child)))
-                        children))
+                       (mapcar (lambda (child)
+                                 (list child (navigel-entity-to-columns child)))
+                               children))
            (tabulated-list-print)
-           (navigel--restore-state state)
+           (when (not (navigel-single-buffer-app-p app))
+             (navigel--restore-state state))
            (when target
              (navigel-go-to-entity target))
            (run-hooks 'navigel-changed-hook)
@@ -389,17 +444,25 @@ Interactively, ENTITY is either the element at point or the user
 is asked for a top level ENTITY."
   ;; save navigel-app because (navigel-tablist-mode) will reset it
   (let ((app navigel-app)
-        (buffer (get-buffer-create (navigel-entity-buffer entity))))
+        (prev-entity navigel-entity)
+        (single (navigel-single-buffer-app-p navigel-app))
+        (buffer (navigel--entity-buffer navigel-app entity))
+        cache)
     (with-current-buffer buffer
       ;; set navigel-app first because it is used on the line below to
       ;; select the appropriate mode:
       (setq-local navigel-app app)
+      (when single
+        (when prev-entity (navigel--cache-state prev-entity))
+        (setq cache navigel--state-cache))
       (navigel-entity-tablist-mode entity)
       ;; restore navigel-app because is got erased by activating the major mode:
       (setq-local navigel-app app)
       (setq-local tabulated-list-padding 2) ; for `tablist'
       (setq-local navigel-entity entity)
-
+      (when single
+        (setq-local navigel--state-cache cache)
+        (rename-buffer (navigel-single-buffer-name app entity) t))
       (setq-local tablist-operations-function #'navigel--tablist-operation-function)
       (setq-local revert-buffer-function #'navigel--revert-buffer)
       (setq-local imenu-prev-index-position-function
@@ -410,9 +473,12 @@ is asked for a top level ENTITY."
       (setq-local bookmark-make-record-function #'navigel-make-bookmark)
       (tabulated-list-init-header)
       (navigel-refresh
-       target
+       nil
        (lambda ()
          (with-current-buffer buffer
+           (when (and single entity)
+             (navigel--restore-state (navigel--cached-state entity)))
+           (when target (navigel-go-to-entity target))
            (run-hooks 'navigel-init-done-hook)))))
     (switch-to-buffer buffer)))
 
@@ -440,6 +506,55 @@ The state contains the entity at point, the column of point, and the marked enti
         (dolist (entity .marked-entities)
           (when (navigel-go-to-entity entity)
             (tablist-put-mark)))))))
+
+(defun navigel--forget-single-buffer ()
+  "Remove the entry for the current buffer in `navigel-single-buffers."
+  (map-delete navigel-single-buffers navigel-app))
+
+(defun navigel--single-app-buffer-create (app)
+  "Create and return a buffer for the given APP, setting it up for single mode."
+  (let ((buffer (get-buffer-create (navigel-single-buffer-name app nil))))
+    (setf (alist-get app navigel-single-buffers) buffer)
+    (with-current-buffer buffer
+      (add-hook 'kill-buffer-hook #'navigel--forget-single-buffer nil t)
+      (setq-local navigel-app app))
+    buffer))
+
+(defun navigel--app-buffer (app &optional no-create)
+  "If APP is a single-buffer application, find or create its buffer.
+
+If NO-CREATE is not nil, do not create a fresh buffer if one does
+not already exist."
+  (when (navigel-single-buffer-app-p app)
+    (let ((buffer (alist-get app navigel-single-buffers)))
+      (when (and (not (buffer-live-p buffer)) (not no-create))
+        (setq buffer (navigel--single-app-buffer-create app)))
+      buffer)))
+
+(defun navigel--entity-buffer (app entity)
+  "Return the buffer that APP should use for the given ENTITY."
+  (or (navigel--app-buffer app)
+      (get-buffer-create (navigel-entity-buffer entity))))
+
+(defun navigel--cache-state (entity)
+  "Save in the local cache the state of ENTITY, as displayed in the current buffer."
+  (let ((id (when entity (navigel-entity-id entity))))
+    (when id
+      (when (not navigel--state-cache)
+        (setq-local navigel--state-cache ()))
+      (setf (alist-get id navigel--state-cache nil nil #'equal)
+            (navigel--save-state)))))
+
+(defun navigel--cached-state (&optional entity app)
+  "Return the cached state of the given ENTITY, in application APP.
+
+ENTITY and APP default to the local values of `navigel-entity' and `navigel-app'."
+  (let ((entity (or entity navigel-entity)))
+    (when entity
+      (let ((app-buffer (navigel--app-buffer (or app navigel-app))))
+        (when app-buffer
+          (cdr (assoc (navigel-entity-id entity)
+                      (buffer-local-value 'navigel--state-cache app-buffer))))))))
 
 (defun navigel--revert-buffer (&rest _args)
   "Compute `navigel-entity' children and list those in the current buffer."

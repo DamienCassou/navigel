@@ -1,6 +1,6 @@
 ;;; navigel-ex-fs.el --- Example of navigel to navigate the filesystem  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019  Damien Cassou
+;; Copyright (C) 2019, 2020  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
 
@@ -160,6 +160,14 @@
 
 ;; The `funcall' is here to tell navigel that deletion is
 ;; finished. You can now mark files with `m' and delete them with `D'.
+
+;; By default, all entities of the new application will be displayed
+;; in their own buffers, named using the generic function
+;; `navigel-name'.  Users of your application can ask navigel to reuse
+;; the same buffer for all entities in the app by customizing the
+;; variable `navigel-single-buffer-apps'.  The name of this single
+;; buffer when it is displaying a given entity is constructed using
+;; the generic function `navigel-single-buffer-name'.
 
 (provide 'navigel-ex-fs)
 ;;; navigel-ex-fs.el ends here
