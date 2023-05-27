@@ -50,7 +50,7 @@
   :group 'magit-extensions)
 
 (defcustom navigel-changed-hook nil
-  "Normal hook run after a navigel's tablist buffer has been refreshed or populated."
+  "Normal hook run after a navigel's tablist buffer changed."
   :type 'hook)
 
 (defcustom navigel-init-done-hook nil
@@ -486,7 +486,8 @@ is asked for a top level ENTITY."
   "Return an object representing the state of the current buffer.
 This should be restored with `navigel--restore-state'.
 
-The state contains the entity at point, the column of point, and the marked entities."
+The state contains the entity at point, the column of point, and
+the marked entities."
   `(
     (entity-at-point . ,(navigel-entity-at-point))
     (column . ,(current-column))
@@ -497,9 +498,9 @@ The state contains the entity at point, the column of point, and the marked enti
   (let-alist state
     (if .entity-at-point
         (navigel-go-to-entity .entity-at-point)
-      (setf (point) (point-min)))
+      (goto-char (point-min)))
     (when .column
-      (setf (point) (line-beginning-position))
+      (goto-char (line-beginning-position))
       (forward-char .column))
     (when .marked-entities
       (save-excursion
@@ -548,7 +549,8 @@ not already exist."
 (defun navigel--cached-state (&optional entity app)
   "Return the cached state of the given ENTITY, in application APP.
 
-ENTITY and APP default to the local values of `navigel-entity' and `navigel-app'."
+ENTITY and APP default to the local values of `navigel-entity' and
+`navigel-app'."
   (let ((entity (or entity navigel-entity)))
     (when entity
       (let ((app-buffer (navigel--app-buffer (or app navigel-app))))
