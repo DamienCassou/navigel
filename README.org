@@ -10,8 +10,8 @@
           <img alt="MELPA" src="https://melpa.org/packages/navigel-badge.svg"/>
         </a>
 
-        <a href="https://gitlab.petton.fr/DamienCassou/navigel/commits/master">
-          <img alt="pipeline status" src="https://gitlab.petton.fr/DamienCassou/navigel/badges/master/pipeline.svg" />
+        <a href="https://github.com/DamienCassou/navigel/actions/workflows/test.yml">
+          <img alt="pipeline status" src="https://github.com/DamienCassou/navigel/actions/workflows/test.yml/badge.svg" />
         </a>
       </p>
   #+END_HTML
@@ -61,7 +61,7 @@ for marking and deleting:
 
 ** License
 
-See [[file:COPYING][COPYING]]. Copyright (c) 2019 Damien Cassou.
+See [[file:COPYING][COPYING]]. Copyright (c) 2019-2023 Damien Cassou.
 
   #+BEGIN_HTML
   <a href="https://liberapay.com/DamienCassou/donate">

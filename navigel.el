@@ -3,7 +3,7 @@
 ;; Copyright (C) 2019-2023  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
-;; Url: https://gitlab.petton.fr/DamienCassou/navigel
+;; Url: https://github.com/DamienCassou/navigel
 ;; Package-requires: ((emacs "25.1") (tablist "1.0"))
 ;; Version: 0.7.0
 
