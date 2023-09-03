@@ -1,6 +1,6 @@
 ;;; navigel-ex-fs.el --- Example of navigel to navigate the filesystem  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019, 2020  Damien Cassou
+;; Copyright (C) 2019-2023  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
 
