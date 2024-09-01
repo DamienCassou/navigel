@@ -478,7 +478,7 @@ is asked for a top level ENTITY."
          (with-current-buffer buffer
            (when (and single entity)
              (navigel--restore-state (navigel--cached-state entity)))
-           (when target (navigel-go-to-entity target))
+           (if target (navigel-go-to-entity target) (goto-char (point-min)))
            (run-hooks 'navigel-init-done-hook)))))
     (switch-to-buffer buffer)))
 
