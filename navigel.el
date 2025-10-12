@@ -203,8 +203,11 @@ This method must be overridden for any tablist view to work.")
   nil)
 
 (cl-defgeneric navigel-equal (entity1 entity2)
-  "Return non-nil if ENTITY1 and ENTITY2 represent the same entity."
-  (equal entity1 entity2))
+  "Return non-nil if ENTITY1 and ENTITY2 represent the same entity.
+
+By default, entities are equal if their ids (as in `navigel-entity-id') are
+equal."
+  (equal (navigel-entity-id entity1) (navigel-entity-id entity2)))
 
 (cl-defgeneric navigel-entity-at-point ()
   "Return the entity at point or nil if none.")
