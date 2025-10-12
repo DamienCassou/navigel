@@ -3,8 +3,8 @@
 ;; Copyright (C) 2019-2025  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
-;; Url: https://github.com/DamienCassou/navigel
-;; Package-requires: ((emacs "25.1") (tablist "1.0"))
+;; URL: https://github.com/DamienCassou/navigel
+;; Package-Requires: ((emacs "25.1") (tablist "1.0"))
 ;; Version: 1.0.0
 
 ;; This program is free software; you can redistribute it and/or modify
