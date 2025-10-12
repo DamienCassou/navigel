@@ -433,7 +433,43 @@ This method will only be active if `navigel-app' equals APP."
   `(cl-defmethod ,name ,(navigel--insert-context-in-args app args)
      ,@body))
 
+(cl-defun navigel-completing-read (prompt entities &key category)
+  "PROMPT user to select one entity among ENTITIES.
+Return the selected entity.
+
+Transform each entity to a string with `navigel-name'.
+
+The user is allowed to exit by typing a string not matching any
+entity.  In this case, the user must confirm and the typed string
+is returned.
+
+CATEGORY may be used to specify the type of object being listed.
+This is used by some packages to show additional information
+about each candidate or to provide contextual menus.
+
+The string representation of each element of ENTITIES include the
+`navigel-entity' text property whose value is the entity
+represented by the string.  This is useful for the tools working
+directly on the completion candidates (such as embark)."
+  (let* ((map (make-hash-table :test 'equal :size (length entities)))
+         (entity-strings (mapcar (lambda (entity) (propertize
+                                                   (funcall #'navigel-name entity)
+                                                   'navigel-entity entity))
+                                 entities)))
+    (cl-loop for entity in entities
+             for entity-string in entity-strings
+             do (puthash entity-string entity map))
+    (let ((entity-string (completing-read prompt
+                                          (lambda (string predicate action)
+                                            (if (eq action 'metadata)
+                                                (list 'metadata (when category (cons 'category category)))
+                                              (complete-with-action
+                                               action entity-strings string predicate)))
+                                          nil 'confirm)))
+      (gethash entity-string map entity-string))))
+
 
+
 ;;; Private functions
 
 (defvar bookmark-make-record-function)
