@@ -1,6 +1,6 @@
 ;;; navigel-test.el --- Tests for navigel.el         -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2023  Damien Cassou
+;; Copyright (C) 2019-2025  Damien Cassou
 
 ;; Author: Damien Cassou <damien@cassou.me>
 
