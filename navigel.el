@@ -188,7 +188,7 @@ majority of cases."
 
 (cl-defgeneric navigel-bookmark-name (entity)
   "Return a string representing ENTITY for `bookmark'."
-  (navigel-name entity))
+  (format "%s: %s" navigel-app (navigel-name entity)))
 
 (cl-defgeneric navigel-children (entity callback)
   "Execute CALLBACK with the list of ENTITY's children as argument.
